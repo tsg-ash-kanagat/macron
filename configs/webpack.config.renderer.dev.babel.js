@@ -1,22 +1,18 @@
 /**
  * Build config for development electron renderer process that uses
  * Hot-Module-Replacement
- *
- * https://webpack.js.org/concepts/hot-module-replacement/
  */
 
-import path from 'path';
-import fs from 'fs';
-import webpack from 'webpack';
-import chalk from 'chalk';
-import merge from 'webpack-merge';
-import { spawn, execSync } from 'child_process';
-import { TypedCssModulesPlugin } from 'typed-css-modules-webpack-plugin';
-import baseConfig from './webpack.config.base';
-import CheckNodeEnv from '../internals/scripts/CheckNodeEnv';
+const path = require('path');
+const fs = require('fs');
+const webpack = require('webpack');
+const chalk = require('chalk');
+const { spawn, execSync } = require('child_process');
+const { TypedCssModulesPlugin } = require('typed-css-modules-webpack-plugin');
+const { merge } = require('webpack-merge');
+const baseConfig = require('./webpack.config.base');
+const CheckNodeEnv = require('../internals/scripts/CheckNodeEnv');
 
-// When an ESLint server is running, we can't set the NODE_ENV so we'll check if it's
-// at the dev webpack config is not accidentally run in a production environment
 if (process.env.NODE_ENV === 'production') {
   CheckNodeEnv('development');
 }
@@ -25,13 +21,11 @@ const port = process.env.PORT || 1212;
 const publicPath = `http://localhost:${port}/dist`;
 const dll = path.join(__dirname, '..', 'dll');
 const manifest = path.resolve(dll, 'renderer.json');
-const requiredByDLLConfig = module.parent.filename.includes(
-  'webpack.config.renderer.dev.dll'
-);
+const requiredByDLLConfig =
+  module.parent &&
+  module.parent.filename &&
+  module.parent.filename.includes('webpack.config.renderer.dev.dll');
 
-/**
- * Warn if the DLL is not built
- */
 if (!requiredByDLLConfig && !(fs.existsSync(dll) && fs.existsSync(manifest))) {
   console.log(
     chalk.black.bgYellow.bold(
@@ -41,27 +35,27 @@ if (!requiredByDLLConfig && !(fs.existsSync(dll) && fs.existsSync(manifest))) {
   execSync('yarn build-dll');
 }
 
-export default merge.smart(baseConfig, {
+module.exports = merge(baseConfig, {
   devtool: 'inline-source-map',
-
   mode: 'development',
-
   target: 'electron-renderer',
-
   entry: [
     ...(process.env.PLAIN_HMR ? [] : ['react-hot-loader/patch']),
     `webpack-dev-server/client?http://localhost:${port}/`,
     'webpack/hot/only-dev-server',
     require.resolve('../app/index.tsx')
   ],
-
   output: {
     publicPath: `http://localhost:${port}/dist/`,
     filename: 'renderer.dev.js'
   },
-
   module: {
     rules: [
+      {
+        test: /\.css$/,
+        resourceQuery: /url/,
+        type: 'asset/resource'
+      },
       {
         test: /\.global\.css$/,
         use: [
@@ -77,28 +71,22 @@ export default merge.smart(baseConfig, {
         ]
       },
       {
-        test: /^((?!\.global).)*\.css$/,
+        test: /^((?!\\.global).)*\\.css$/,
         use: [
-          'file-loader',
-          'extract-loader',
-          // {
-          //   loader: 'style-loader'
-          // },
+          {
+            loader: 'style-loader'
+          },
           {
             loader: 'css-loader',
             options: {
-              // modules: {
-              //   localIdentName: '[name]__[local]__[hash:base64:5]'
-              // },
               sourceMap: true,
               importLoaders: 1
             }
           }
         ]
       },
-      // SASS support - compile all .global.scss files and pipe it to style.css
       {
-        test: /\.global\.(scss|sass)$/,
+        test: /\\.global\\.(scss|sass)$/,
         use: [
           {
             loader: 'style-loader'
@@ -114,9 +102,8 @@ export default merge.smart(baseConfig, {
           }
         ]
       },
-      // SASS support - compile all other .scss files and pipe it to style.css
       {
-        test: /^((?!\.global).)*\.(scss|sass)$/,
+        test: /^((?!\\.global).)*\\.(scss|sass)$/,
         use: [
           {
             loader: 'style-loader'
@@ -136,9 +123,8 @@ export default merge.smart(baseConfig, {
           }
         ]
       },
-      // WOFF Font
       {
-        test: /\.woff(\?v=\d+\.\d+\.\d+)?$/,
+        test: /\\.woff(\\?v=\\d+\\.\\d+\\.\\d+)?$/,
         use: {
           loader: 'url-loader',
           options: {
@@ -147,9 +133,8 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // WOFF2 Font
       {
-        test: /\.woff2(\?v=\d+\.\d+\.\d+)?$/,
+        test: /\\.woff2(\\?v=\\d+\\.\\d+\\.\\d+)?$/,
         use: {
           loader: 'url-loader',
           options: {
@@ -158,9 +143,8 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // TTF Font
       {
-        test: /\.ttf(\?v=\d+\.\d+\.\d+)?$/,
+        test: /\\.ttf(\\?v=\\d+\\.\\d+\\.\\d+)?$/,
         use: {
           loader: 'url-loader',
           options: {
@@ -169,14 +153,12 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // EOT Font
       {
-        test: /\.eot(\?v=\d+\.\d+\.\d+)?$/,
+        test: /\\.eot(\\?v=\\d+\\.\\d+\\.\\d+)?$/,
         use: 'file-loader'
       },
-      // SVG Font
       {
-        test: /\.svg(\?v=\d+\.\d+\.\d+)?$/,
+        test: /\\.svg(\\?v=\\d+\\.\\d+\\.\\d+)?$/,
         use: {
           loader: 'url-loader',
           options: {
@@ -185,9 +167,8 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // Common Image Formats
       {
-        test: /\.(?:ico|gif|png|jpg|jpeg|webp)$/,
+        test: /\\.(?:ico|gif|png|jpg|jpeg|webp)$/,
         use: 'url-loader'
       }
     ]
@@ -198,8 +179,6 @@ export default merge.smart(baseConfig, {
     }
   },
   plugins: [
-    // new MonacoEditorWebpackPlugin(),
-
     requiredByDLLConfig
       ? null
       : new webpack.DllReferencePlugin({
@@ -207,67 +186,39 @@ export default merge.smart(baseConfig, {
           manifest: require(manifest),
           sourceType: 'var'
         }),
-
-    new webpack.HotModuleReplacementPlugin({
-      multiStep: true
-    }),
-
+    new webpack.HotModuleReplacementPlugin(),
     new TypedCssModulesPlugin({
       globPattern: 'app/**/*.{css,scss,sass}'
     }),
-
     new webpack.NoEmitOnErrorsPlugin(),
-
-    /**
-     * Create global constants which can be configured at compile time.
-     *
-     * Useful for allowing different behaviour between development builds and
-     * release builds
-     *
-     * NODE_ENV should be production so that modules do not perform certain
-     * development checks
-     *
-     * By default, use 'development' as NODE_ENV. This can be overriden with
-     * 'staging', for example, by changing the ENV variables in the npm scripts
-     */
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'development'
     }),
-
     new webpack.LoaderOptionsPlugin({
       debug: true
     })
-  ],
-
+  ].filter(Boolean),
   node: {
     __dirname: false,
     __filename: false
   },
-
   devServer: {
     port,
-    publicPath,
-    compress: true,
-    noInfo: true,
-    stats: 'errors-only',
-    inline: true,
-    lazy: false,
     hot: true,
+    compress: true,
     headers: { 'Access-Control-Allow-Origin': '*' },
-    contentBase: path.join(__dirname, 'dist'),
-    watchOptions: {
-      aggregateTimeout: 300,
-      ignored: /node_modules/,
-      poll: 100
+    devMiddleware: {
+      publicPath
     },
-    historyApiFallback: {
-      verbose: true,
-      disableDotRule: false
+    static: {
+      directory: path.join(__dirname, '..', 'app'),
+      publicPath: '/'
     },
-    before() {
+    historyApiFallback: true,
+    setupMiddlewares: (middlewares, server) => {
       if (process.env.START_HOT) {
         console.log('Starting Main Process...');
-        spawn('npm', ['run', 'start-main-dev'], {
+        spawn('yarn', ['start-main-dev'], {
           shell: true,
           env: process.env,
           stdio: 'inherit'
@@ -275,6 +226,7 @@ export default merge.smart(baseConfig, {
           .on('close', code => process.exit(code))
           .on('error', spawnError => console.error(spawnError));
       }
+      return middlewares;
     }
   }
 });

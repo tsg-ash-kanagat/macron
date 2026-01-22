@@ -2,11 +2,11 @@
  * Base webpack config used across other specific configs
  */
 
-import path from 'path';
-import webpack from 'webpack';
-import { dependencies as externals } from '../app/package.json';
+const path = require('path');
+const webpack = require('webpack');
+const { dependencies: externals } = require('../app/package.json');
 
-export default {
+module.exports = {
   externals: [...Object.keys(externals || {})],
 
   module: {
@@ -41,8 +41,6 @@ export default {
   plugins: [
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production'
-    }),
-
-    new webpack.NamedModulesPlugin()
+    })
   ]
 };

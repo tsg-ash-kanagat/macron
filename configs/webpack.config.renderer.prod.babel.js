@@ -2,38 +2,37 @@
  * Build config for electron renderer process
  */
 
-import path from 'path';
-import webpack from 'webpack';
-import MiniCssExtractPlugin from 'mini-css-extract-plugin';
-import OptimizeCSSAssetsPlugin from 'optimize-css-assets-webpack-plugin';
-import { BundleAnalyzerPlugin } from 'webpack-bundle-analyzer';
-import merge from 'webpack-merge';
-import TerserPlugin from 'terser-webpack-plugin';
-import baseConfig from './webpack.config.base';
-import CheckNodeEnv from '../internals/scripts/CheckNodeEnv';
-import DeleteSourceMaps from '../internals/scripts/DeleteSourceMaps';
+const path = require('path');
+const webpack = require('webpack');
+const MiniCssExtractPlugin = require('mini-css-extract-plugin');
+const CssMinimizerPlugin = require('css-minimizer-webpack-plugin');
+const { BundleAnalyzerPlugin } = require('webpack-bundle-analyzer');
+const { merge } = require('webpack-merge');
+const TerserPlugin = require('terser-webpack-plugin');
+const baseConfig = require('./webpack.config.base');
+const CheckNodeEnv = require('../internals/scripts/CheckNodeEnv');
+const DeleteSourceMaps = require('../internals/scripts/DeleteSourceMaps');
 
 CheckNodeEnv('production');
 DeleteSourceMaps();
 
-export default merge.smart(baseConfig, {
-  devtool: process.env.DEBUG_PROD === 'true' ? 'source-map' : 'none',
-
+module.exports = merge(baseConfig, {
+  devtool: process.env.DEBUG_PROD === 'true' ? 'source-map' : false,
   mode: 'production',
-
-  target: 'electron-preload',
-
+  target: 'electron-renderer',
   entry: path.join(__dirname, '..', 'app/index.tsx'),
-
   output: {
     path: path.join(__dirname, '..', 'app/dist'),
     publicPath: './dist/',
     filename: 'renderer.prod.js'
   },
-
   module: {
     rules: [
-      // Extract all .global.css to style.css as is
+      {
+        test: /\.css$/,
+        resourceQuery: /url/,
+        type: 'asset/resource'
+      },
       {
         test: /\.global\.css$/,
         use: [
@@ -51,27 +50,23 @@ export default merge.smart(baseConfig, {
           }
         ]
       },
-      // Pipe other styles through css modules and append to style.css
       {
         test: /^((?!\.global).)*\.css$/,
         use: [
-          'file-loader',
-          'extract-loader',
-          // {
-          //   loader: MiniCssExtractPlugin.loader
-          // },
+          {
+            loader: MiniCssExtractPlugin.loader,
+            options: {
+              publicPath: './'
+            }
+          },
           {
             loader: 'css-loader',
             options: {
-              // modules: {
-              //   localIdentName: '[name]__[local]__[hash:base64:5]'
-              // },
               sourceMap: true
             }
           }
         ]
       },
-      // Add SASS support  - compile all .global.scss files and pipe it to style.css
       {
         test: /\.global\.(scss|sass)$/,
         use: [
@@ -93,21 +88,15 @@ export default merge.smart(baseConfig, {
           }
         ]
       },
-      // Add SASS support  - compile all other .scss files and pipe it to style.css
       {
         test: /^((?!\.global).)*\.(scss|sass)$/,
         use: [
-          'file-loader',
-          'extract-loader',
-          // {
-          //   loader: MiniCssExtractPlugin.loader
-          // },
+          {
+            loader: MiniCssExtractPlugin.loader
+          },
           {
             loader: 'css-loader',
             options: {
-              // modules: {
-              //   localIdentName: '[name]__[local]__[hash:base64:5]'
-              // },
               importLoaders: 1,
               sourceMap: true
             }
@@ -120,7 +109,6 @@ export default merge.smart(baseConfig, {
           }
         ]
       },
-      // WOFF Font
       {
         test: /\.woff(\?v=\d+\.\d+\.\d+)?$/,
         use: {
@@ -131,7 +119,6 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // WOFF2 Font
       {
         test: /\.woff2(\?v=\d+\.\d+\.\d+)?$/,
         use: {
@@ -142,7 +129,6 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // TTF Font
       {
         test: /\.ttf(\?v=\d+\.\d+\.\d+)?$/,
         use: {
@@ -153,12 +139,10 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // EOT Font
       {
         test: /\.eot(\?v=\d+\.\d+\.\d+)?$/,
         use: 'file-loader'
       },
-      // SVG Font
       {
         test: /\.svg(\?v=\d+\.\d+\.\d+)?$/,
         use: {
@@ -169,54 +153,37 @@ export default merge.smart(baseConfig, {
           }
         }
       },
-      // Common Image Formats
       {
         test: /\.(?:ico|gif|png|jpg|jpeg|webp)$/,
         use: 'url-loader'
       }
     ]
   },
-
   optimization: {
     minimizer: process.env.E2E_BUILD
       ? []
       : [
           new TerserPlugin({
             parallel: true,
-            sourceMap: true,
-            cache: true
-          }),
-          new OptimizeCSSAssetsPlugin({
-            cssProcessorOptions: {
-              map: {
-                inline: false,
-                annotation: true
-              }
+            extractComments: false,
+            terserOptions: {
+              format: { comments: false }
             }
+          }),
+          new CssMinimizerPlugin({
+            exclude: /\?url$/i
           })
         ]
   },
-
   plugins: [
-    /**
-     * Create global constants which can be configured at compile time.
-     *
-     * Useful for allowing different behaviour between development builds and
-     * release builds
-     *
-     * NODE_ENV should be production so that modules do not perform certain
-     * development checks
-     */
     new webpack.EnvironmentPlugin({
       NODE_ENV: 'production',
       DEBUG_PROD: false,
       E2E_BUILD: false
     }),
-
     new MiniCssExtractPlugin({
       filename: 'style.css'
     }),
-
     new BundleAnalyzerPlugin({
       analyzerMode:
         process.env.OPEN_ANALYZER === 'true' ? 'server' : 'disabled',

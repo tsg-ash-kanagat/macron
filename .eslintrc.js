@@ -1,7 +1,23 @@
 module.exports = {
-  extends: 'erb/typescript',
+  parser: '@typescript-eslint/parser',
+  parserOptions: {
+    ecmaVersion: 2020,
+    sourceType: 'module',
+    ecmaFeatures: { jsx: true }
+  },
+  env: {
+    browser: true,
+    node: true,
+    es2021: true
+  },
+  extends: [
+    'eslint:recommended',
+    'plugin:react/recommended',
+    'plugin:react-hooks/recommended',
+    'plugin:@typescript-eslint/recommended',
+    'plugin:prettier/recommended'
+  ],
   rules: {
-    // A temporary hack related to IDE not resolving correct package.json
     'import/no-extraneous-dependencies': 'off',
     'no-await-in-loop': 'off',
     'no-plusplus': 'off',
@@ -9,9 +25,11 @@ module.exports = {
     'react/prop-types': 'off'
   },
   settings: {
+    react: { version: 'detect' },
     'import/resolver': {
-      // See https://github.com/benmosher/eslint-plugin-import/issues/1396#issuecomment-575727774 for line below
-      node: {},
+      node: {
+        extensions: ['.js', '.jsx', '.ts', '.tsx']
+      },
       webpack: {
         config: require.resolve('./configs/webpack.config.eslint.js')
       }

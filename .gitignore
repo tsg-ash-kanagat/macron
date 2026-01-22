@@ -48,3 +48,10 @@ npm-debug.log.*
 *.css.d.ts
 *.sass.d.ts
 *.scss.d.ts
+
+
+#Ignore cursor AI rules
+.cursor/rules/codacy.mdc
+
+# MCP config with secrets
+.mcp.json

@@ -1,5 +1,11 @@
-import { app as electron, remote } from 'electron';
-import pkg from '../package.json';
+import { app as electron } from 'electron';
+const pkg = require('../package.json');
+
+let remote;
+if (process.type === 'renderer') {
+  remote = require('@electron/remote/renderer');
+}
+
 
 export const appPath = dir => {
   return (

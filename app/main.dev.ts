@@ -11,9 +11,11 @@
 import path from 'path';
 import { app, BrowserWindow, nativeTheme, TouchBar } from 'electron';
 import { autoUpdater } from 'electron-updater';
+import * as remote from '@electron/remote/main/index.js';
+remote.initialize();
 import log from 'electron-log';
-import store from './utils/store';
-import { fire } from './utils/events';
+import store from './utils/store.js';
+import { fire } from './utils/events.js';
 
 store.set('theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 
@@ -32,12 +34,6 @@ if (process.env.NODE_ENV === 'production') {
   sourceMapSupport.install();
 }
 
-if (
-  process.env.NODE_ENV === 'development' ||
-  process.env.DEBUG_PROD === 'true'
-) {
-  require('electron-debug')();
-}
 
 const installExtensions = async () => {
   const installer = require('electron-devtools-installer');
@@ -54,26 +50,30 @@ const createWindow = async () => {
     process.env.NODE_ENV === 'development' ||
     process.env.DEBUG_PROD === 'true'
   ) {
+    // TODO: electron-debug v4 is ESM-only, causing loading issues in main process
+    // Consider downgrading to v3 or properly configuring ESM support
+    // const electronDebug = await import('electron-debug');
+    // electronDebug.default();
     await installExtensions();
   }
 
   mainWindow = new BrowserWindow({
     show: false,
-    height: 550,
+    height: 700,
     minHeight: 550,
-    minWidth: 750,
-    width: 750,
+    minWidth: 900,
+    width: 1000,
     titleBarStyle: 'default',
     fullscreenable: false,
-    webPreferences:
-      process.env.NODE_ENV === 'development' || process.env.E2E_BUILD === 'true'
-        ? {
-            nodeIntegration: true
-          }
-        : {
-            preload: path.join(__dirname, 'dist/renderer.prod.js')
-          }
+    webPreferences: {
+      nodeIntegration: true,
+      contextIsolation: false,
+      enableRemoteModule: true,
+      sandbox: false
+    }
   });
+
+  remote.enable(mainWindow.webContents);
 
   mainWindow.loadURL(`file://${__dirname}/app.html`);
 
@@ -109,9 +109,11 @@ const createWindow = async () => {
 
   mainWindow.setTouchBar(touchBar);
 
-  // Remove this if your app does not use auto updates
-  // eslint-disable-next-line
-  new AppUpdater();
+  // Auto-update only when packaged to avoid dev crashes
+  if (app.isPackaged) {
+    // eslint-disable-next-line no-new
+    new AppUpdater();
+  }
 };
 
 /**

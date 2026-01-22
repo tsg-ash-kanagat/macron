@@ -1,15 +1,23 @@
-import darkMode from 'antd/dist/antd.dark.css';
-import lightMode from 'antd/dist/antd.css';
+import darkMode from 'antd/dist/antd.dark.css?url';
+import lightMode from 'antd/dist/antd.css?url';
 import store from './store';
 
 const styleSheet = () => document.getElementById('theme');
 
-const getTheme = () => store.get('theme', 'light');
+export const getTheme = () => store.get('theme', 'dark');
 
 const getStyleSheet = theme => (theme === 'dark' ? darkMode : lightMode);
 
-const updateStylesheet = theme => {
-  styleSheet().setAttribute('href', getStyleSheet(theme));
+export const applyTheme = theme => {
+  store.set('theme', theme);
+  if (typeof document !== 'undefined') {
+    document.body.setAttribute('data-theme', theme);
+    document.documentElement.setAttribute('data-theme', theme);
+  }
+  const tag = styleSheet();
+  if (tag) {
+    tag.setAttribute('href', getStyleSheet(theme));
+  }
 };
 
-export default () => updateStylesheet(getTheme());
+export default () => applyTheme(getTheme());

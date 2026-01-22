@@ -1,5 +1,11 @@
-import React, { useEffect, useState } from 'react';
-import { Input, Form, Radio, Button } from 'antd';
+import React, { useEffect, useState, useMemo } from 'react';
+import { Input, Form, Radio, Button, Typography, Alert, Space, Tooltip } from 'antd';
+import { InfoCircleOutlined, CheckCircleOutlined, FolderOpenOutlined, WarningOutlined } from '@ant-design/icons';
+import { getCronDescription, formatNextRunTime, CRON_5_REGEX } from '../utils/cron';
+import * as remote from '@electron/remote';
+import * as fs from 'fs';
+
+const { Text, Paragraph } = Typography;
 
 function CronBuilder({ job, onSave, onCancel, onDelete }) {
   const [command, setCommand] = useState(job.job.command());
@@ -22,9 +28,23 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
         setMonth('*');
         setWeekday('*');
         break;
+      case '15min':
+        setMinute('*/15');
+        setHour('*');
+        setDay('*');
+        setMonth('*');
+        setWeekday('*');
+        break;
       case 'hourly':
         setMinute('0');
         setHour('*');
+        setDay('*');
+        setMonth('*');
+        setWeekday('*');
+        break;
+      case '6hours':
+        setMinute('0');
+        setHour('*/6');
         setDay('*');
         setMonth('*');
         setWeekday('*');
@@ -35,6 +55,13 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
         setDay('*');
         setMonth('*');
         setWeekday('*');
+        break;
+      case 'weekdays':
+        setMinute('0');
+        setHour('0');
+        setDay('*');
+        setMonth('*');
+        setWeekday('1-5');
         break;
       case 'weekly':
         setMinute('0');
@@ -71,6 +98,75 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
 
   const remove = () => onDelete(job);
 
+  const selectFile = async () => {
+    const result = await remote.dialog.showOpenDialog({
+      properties: ['openFile'],
+      title: 'Select Script or Executable',
+      buttonLabel: 'Select',
+      filters: [
+        { name: 'Scripts', extensions: ['sh', 'py', 'rb', 'js', 'pl'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    });
+
+    if (!result.canceled && result.filePaths.length > 0) {
+      setCommand(result.filePaths[0]);
+      if (frequency !== 'custom') {
+        setFrequency('custom');
+      }
+    }
+  };
+
+  // Cron expression preview and validation
+  const cronExpression = useMemo(() => {
+    return [minute, hour, day, month, weekday].join(' ').trim();
+  }, [minute, hour, day, month, weekday]);
+
+  const isValidCron = useMemo(() => {
+    if (!cronExpression) return false;
+    return CRON_5_REGEX.test(cronExpression);
+  }, [cronExpression]);
+
+  const commandValidation = useMemo(() => {
+    if (!command.trim()) {
+      return { valid: false, warning: null };
+    }
+
+    const firstPart = command.trim().split(/\s+/)[0];
+
+    if (firstPart.startsWith('/') || firstPart.startsWith('~/') || firstPart.startsWith('./')) {
+      const expandedPath = firstPart.replace(/^~/, process.env.HOME || '');
+
+      try {
+        if (fs.existsSync(expandedPath)) {
+          const stats = fs.statSync(expandedPath);
+          if (stats.isFile()) {
+            return {
+              valid: true,
+              warning: (stats.mode & fs.constants.S_IXUSR) === 0
+                ? 'File exists but may not be executable'
+                : null
+            };
+          }
+          return { valid: true, warning: null };
+        } else {
+          return { valid: false, warning: 'File does not exist' };
+        }
+      } catch (error) {
+        return { valid: false, warning: 'Cannot access file' };
+      }
+    }
+
+    return { valid: true, warning: null };
+  }, [command]);
+
+  const handleFieldChange = (field, value, setter) => {
+    setter(value);
+    if (frequency !== 'custom') {
+      setFrequency('custom');
+    }
+  };
+
   useEffect(() => {
     setName(job.job.comment());
     setCommand(job.job.command());
@@ -82,75 +178,223 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
     setFrequency(job.key ? 'custom' : 'minutely');
   }, [job]);
 
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 's') {
+        e.preventDefault();
+        if (isValidCron && command.trim()) {
+          save();
+        }
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [isValidCron, command, minute, hour, day, month, weekday, name]);
+
   return (
-    <Form layout="vertical">
-      <Form.Item label="Name / Comment">
-        <Input value={name} onChange={e => setName(e.target.value)} />
+    <Form layout="vertical" className="max-w-2xl" style={{ padding: '8px 0' }}>
+      <Form.Item
+        label={
+          <Space>
+            <span>Job Name</span>
+            <Text type="secondary" style={{ fontSize: '12px', fontWeight: 'normal' }}>
+              (Optional comment for identification)
+            </Text>
+          </Space>
+        }
+      >
+        <Input
+          value={name}
+          onChange={e => setName(e.target.value)}
+          placeholder="e.g., Daily Backup"
+        />
       </Form.Item>
-      <Form.Item label="Command">
-        <Input value={command} onChange={e => setCommand(e.target.value)} />
+
+      <Form.Item
+        label="Command"
+        required
+        help="The shell command to execute"
+        validateStatus={!commandValidation.valid ? 'error' : commandValidation.warning ? 'warning' : undefined}
+      >
+        <Space.Compact style={{ width: '100%' }} direction="vertical">
+          <Input.TextArea
+            value={command}
+            onChange={e => setCommand(e.target.value)}
+            placeholder="e.g., /usr/bin/backup.sh"
+            rows={3}
+            status={!commandValidation.valid ? 'error' : commandValidation.warning ? 'warning' : undefined}
+          />
+          {commandValidation.warning && (
+            <Alert
+              message={commandValidation.warning}
+              type={!commandValidation.valid ? 'error' : 'warning'}
+              showIcon
+              icon={<WarningOutlined />}
+              style={{ marginTop: '4px' }}
+            />
+          )}
+          <Tooltip title="Select a script or executable file">
+            <Button
+              icon={<FolderOpenOutlined />}
+              onClick={selectFile}
+              block
+            >
+              Browse for Script
+            </Button>
+          </Tooltip>
+        </Space.Compact>
       </Form.Item>
-      <Form.Item label="Every">
-        <Radio.Group
-          value={frequency}
-          onChange={e => help(e.target.value)}
-          size="large"
-          defaultValue={frequency}
-          buttonStyle="solid"
-        >
-          <Radio.Button value="minutely">Minute</Radio.Button>
-          <Radio.Button value="hourly">Hour</Radio.Button>
-          <Radio.Button value="nightly">Night</Radio.Button>
-          <Radio.Button value="weekly">Week</Radio.Button>
-          <Radio.Button value="monthly">Month</Radio.Button>
-          <Radio.Button value="custom">Custom</Radio.Button>
-        </Radio.Group>
+
+      <Form.Item label="Schedule" style={{ marginBottom: '24px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' }}>
+          <Radio.Group
+            value={frequency}
+            onChange={e => help(e.target.value)}
+            size="large"
+            buttonStyle="solid"
+            style={{ width: '100%', display: 'contents' }}
+          >
+            <Radio.Button value="minutely" style={{ textAlign: 'center' }}>Every Minute</Radio.Button>
+            <Radio.Button value="15min" style={{ textAlign: 'center' }}>Every 15 Min</Radio.Button>
+            <Radio.Button value="hourly" style={{ textAlign: 'center' }}>Every Hour</Radio.Button>
+            <Radio.Button value="6hours" style={{ textAlign: 'center' }}>Every 6 Hours</Radio.Button>
+            <Radio.Button value="nightly" style={{ textAlign: 'center' }}>Daily</Radio.Button>
+            <Radio.Button value="weekdays" style={{ textAlign: 'center' }}>Weekdays</Radio.Button>
+            <Radio.Button value="weekly" style={{ textAlign: 'center' }}>Weekly</Radio.Button>
+            <Radio.Button value="monthly" style={{ textAlign: 'center' }}>Monthly</Radio.Button>
+            <Radio.Button value="custom" style={{ textAlign: 'center' }}>Custom</Radio.Button>
+          </Radio.Group>
+        </div>
       </Form.Item>
-      <Form.Item label="Custom">
-        <Input.Group compact>
-          <Input
-            value={minute}
-            onChange={e => setMinute(e.target.value) || setFrequency('custom')}
-            style={{ width: '20%' }}
-          />
-          <Input
-            value={hour}
-            onChange={e => setHour(e.target.value) || setFrequency('custom')}
-            style={{ width: '20%' }}
-          />
-          <Input
-            value={day}
-            onChange={e => setDay(e.target.value) || setFrequency('custom')}
-            style={{ width: '20%' }}
-          />
-          <Input
-            value={month}
-            onChange={e => setMonth(e.target.value) || setFrequency('custom')}
-            style={{ width: '20%' }}
-          />
-          <Input
-            value={weekday}
-            onChange={e => setWeekday(e.target.value) || setFrequency('custom')}
-            style={{ width: '20%' }}
-          />
-        </Input.Group>
-        <div className="mt-10 flex items-center justify-between">
-          <div>
-            <Button.Group>
-              <Button onClick={save} type="primary">
-                Save
-              </Button>
-              <Button onClick={cancel}>Cancel</Button>
-            </Button.Group>
+
+      <Form.Item
+        label={
+          <Space>
+            <span>Cron Expression</span>
+            {frequency === 'custom' && (
+              <Text type="secondary" style={{ fontSize: '12px' }}>
+                <InfoCircleOutlined /> Format: minute hour day month weekday
+              </Text>
+            )}
+          </Space>
+        }
+      >
+        <div>
+          <div style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(140px, 1fr))',
+            gap: '8px',
+            marginBottom: '12px'
+          }}>
+            <Tooltip title="0-59, or * for every minute. Use */15 for every 15 minutes" placement="top">
+              <Input
+                value={minute}
+                onChange={e => handleFieldChange('minute', e.target.value, setMinute)}
+                placeholder="*"
+                addonBefore="Minute"
+              />
+            </Tooltip>
+            <Tooltip title="0-23, or * for every hour. Use */6 for every 6 hours" placement="top">
+              <Input
+                value={hour}
+                onChange={e => handleFieldChange('hour', e.target.value, setHour)}
+                placeholder="*"
+                addonBefore="Hour"
+              />
+            </Tooltip>
+            <Tooltip title="1-31, or * for every day. Day of month" placement="top">
+              <Input
+                value={day}
+                onChange={e => handleFieldChange('day', e.target.value, setDay)}
+                placeholder="*"
+                addonBefore="Day"
+              />
+            </Tooltip>
+            <Tooltip title="1-12, or * for every month" placement="top">
+              <Input
+                value={month}
+                onChange={e => handleFieldChange('month', e.target.value, setMonth)}
+                placeholder="*"
+                addonBefore="Month"
+              />
+            </Tooltip>
+            <Tooltip title="0-7 (0 and 7 are Sunday), or * for every day. Use 1-5 for weekdays" placement="top">
+              <Input
+                value={weekday}
+                onChange={e => handleFieldChange('weekday', e.target.value, setWeekday)}
+                placeholder="*"
+                addonBefore="Weekday"
+              />
+            </Tooltip>
           </div>
-          <div>
-            {job.key && (
-              <Button onClick={remove} danger type="primary">
-                Delete
-              </Button>
+          
+          <div style={{ marginTop: '12px' }}>
+            <Paragraph
+              copyable={{ text: cronExpression }}
+              style={{
+                margin: 0,
+                padding: '8px 12px',
+                background: 'var(--panel)',
+                borderRadius: '4px',
+                border: `1px solid ${isValidCron ? 'var(--border)' : 'var(--danger)'}`,
+                fontFamily: 'monospace',
+                fontSize: '13px'
+              }}
+            >
+              <Text strong style={{ color: isValidCron ? 'var(--text)' : 'var(--danger)' }}>
+                {cronExpression || '* * * * *'}
+              </Text>
+            </Paragraph>
+
+            {isValidCron && cronExpression && (
+              <div style={{ marginTop: '8px', padding: '8px 12px', background: 'var(--panel)', borderRadius: '4px', border: '1px solid var(--border)' }}>
+                <Space direction="vertical" size={4} style={{ width: '100%' }}>
+                  <Text style={{ fontSize: '13px', color: 'var(--text)' }}>
+                    <CheckCircleOutlined style={{ color: '#52c41a', marginRight: '6px' }} />
+                    {getCronDescription(cronExpression)}
+                  </Text>
+                  <Text type="secondary" style={{ fontSize: '12px', marginLeft: '20px' }}>
+                    Next run: {formatNextRunTime(cronExpression)}
+                  </Text>
+                </Space>
+              </div>
+            )}
+
+            {!isValidCron && frequency === 'custom' && cronExpression && (
+              <Alert
+                message="Invalid cron expression"
+                type="error"
+                showIcon
+                style={{ marginTop: '8px' }}
+              />
             )}
           </div>
         </div>
+      </Form.Item>
+
+      <Form.Item>
+        <Space size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
+          <Space>
+            <Tooltip title={!isValidCron ? 'Invalid cron expression' : !command.trim() ? 'Command is required' : 'Save job (Cmd+S)'}>
+              <Button onClick={save} type="primary" size="large" disabled={!isValidCron || !command.trim()}>
+                Save Job
+              </Button>
+            </Tooltip>
+            <Tooltip title="Discard changes">
+              <Button onClick={cancel} size="large">
+                Cancel
+              </Button>
+            </Tooltip>
+          </Space>
+          {job.key && (
+            <Tooltip title="Permanently delete this cron job">
+              <Button onClick={remove} danger size="large">
+                Delete Job
+              </Button>
+            </Tooltip>
+          )}
+        </Space>
       </Form.Item>
     </Form>
   );

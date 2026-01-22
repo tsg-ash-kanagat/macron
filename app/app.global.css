@@ -4,6 +4,132 @@
   width: 100%;
 }
 
+:root {
+  --bg: #0d1117;
+  --panel: #0f141a;
+  --text: #e5e7eb;
+  --muted: #c9d1d9;
+  --border: #2a2f3a;
+  --primary: #0d6efd;
+  --danger: #d9534f;
+  transition: background-color 0.3s ease, color 0.3s ease;
+}
+
+[data-theme='light'] {
+  --bg: #f8fafc;
+  --panel: #ffffff;
+  --text: #0f172a;
+  --muted: #1f2937;
+  --border: #d4d7dd;
+  --primary: #0d6efd;
+  --danger: #d9534f;
+}
+
+* {
+  transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
+}
+
+body,
+#root {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.ant-typography,
+.ant-typography h1,
+.ant-typography h2,
+.ant-typography h3,
+.ant-typography h4,
+.ant-typography h5 {
+  color: var(--text);
+}
+
+.ant-typography-secondary {
+  color: var(--muted) !important;
+}
+
+[data-theme='dark'] .ant-typography,
+[data-theme='dark'] .ant-typography h1,
+[data-theme='dark'] .ant-typography h2,
+[data-theme='dark'] .ant-typography h3,
+[data-theme='dark'] .ant-typography h4,
+[data-theme='dark'] .ant-typography h5,
+[data-theme='dark'] .ant-list-item,
+[data-theme='dark'] .ant-typography-secondary {
+  color: #e5e7eb !important;
+}
+
+[data-theme='dark'] .ant-list-item {
+  border-color: var(--border);
+}
+
+.ant-menu {
+  background: var(--panel);
+  border-inline-end: 1px solid var(--border);
+}
+
+.ant-menu-item {
+  color: var(--muted);
+}
+
+.ant-menu-item-selected,
+.ant-menu-item-active {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+}
+
+.ant-form,
+.ant-form-item,
+.ant-spin-nested-loading,
+.ant-spin-container {
+  background: var(--bg);
+}
+
+.ant-form-item-label > label {
+  color: var(--text);
+}
+
+.ant-input,
+.ant-input-affix-wrapper,
+.ant-input-group > .ant-input,
+.ant-input-number,
+.ant-select-selector,
+.ant-radio-button-wrapper {
+  background: var(--panel) !important;
+  color: var(--text) !important;
+  border: 1px solid var(--border) !important;
+}
+
+.ant-radio-button-wrapper-checked {
+  background: var(--primary) !important;
+  color: #ffffff !important;
+  border-color: var(--primary) !important;
+}
+
+.ant-btn-primary {
+  background: var(--primary);
+  border-color: var(--primary);
+}
+
+.ant-btn-primary.ant-btn-dangerous {
+  background: var(--danger);
+  border-color: var(--danger);
+}
+
+.ant-btn-default {
+  background: var(--panel);
+  border-color: var(--border);
+  color: var(--muted);
+}
+
+.ant-spin-blur {
+  opacity: 0.3;
+}
+
+.ant-divider-horizontal {
+  border-top-color: var(--border);
+}
+
 @media (min-width: 640px) {
   .container {
     max-width: 640px;

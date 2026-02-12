@@ -71,7 +71,9 @@ export default class AppUpdater {
     });
 
     // Check for updates
-    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.checkForUpdatesAndNotify().catch((err) => {
+      log.error('Update check failed:', err);
+    });
   }
 }
 
@@ -157,8 +159,12 @@ const createWindow = async () => {
 
   // Auto-update only when packaged to avoid dev crashes
   if (app.isPackaged) {
-    // eslint-disable-next-line no-new
-    new AppUpdater();
+    try {
+      // eslint-disable-next-line no-new
+      new AppUpdater();
+    } catch (err) {
+      log.error('Failed to initialize auto-updater:', err);
+    }
   }
 };
 

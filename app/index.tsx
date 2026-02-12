@@ -1,12 +1,19 @@
 import React, { Fragment } from 'react';
 import { render } from 'react-dom';
-import { AppContainer as ReactHotAppContainer } from 'react-hot-loader';
 import App from './components/App';
 import ErrorBoundary from './components/ErrorBoundary';
 import './app.global.css';
 import loadTheme from './utils/theme';
 
-const AppContainer = process.env.PLAIN_HMR ? Fragment : ReactHotAppContainer;
+let AppContainer = Fragment;
+if (process.env.NODE_ENV === 'development') {
+  try {
+    const { AppContainer: HotContainer } = require('react-hot-loader');
+    AppContainer = HotContainer;
+  } catch (e) {
+    // react-hot-loader not available in production
+  }
+}
 
 document.addEventListener('DOMContentLoaded', () => {
   loadTheme();

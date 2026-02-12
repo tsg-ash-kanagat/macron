@@ -22,7 +22,8 @@ export function validateCronExpression(expression: string): CronValidation {
   }
 
   try {
-    Cron(expression);
+    const job = new Cron(expression);
+    job.stop();
     return { isValid: true };
   } catch (error) {
     return {
@@ -43,7 +44,7 @@ export function getNextRunTime(expression: string): Date | null {
   }
 
   try {
-    const job = Cron(trimmed);
+    const job = new Cron(trimmed);
     const next = job.nextRun();
     job.stop();
     return next;

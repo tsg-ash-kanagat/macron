@@ -207,13 +207,23 @@ module.exports = merge(baseConfig, {
     hot: true,
     compress: true,
     headers: { 'Access-Control-Allow-Origin': '*' },
+    allowedHosts: 'all', // Required for Electron 40 + webpack-dev-server 5
+    client: {
+      overlay: false, // Disable error overlay that may cause issues
+    },
     devMiddleware: {
       publicPath
     },
-    static: {
-      directory: path.join(__dirname, '..', 'app'),
-      publicPath: '/'
-    },
+    static: [
+      {
+        directory: path.join(__dirname, '..', 'app'),
+        publicPath: '/'
+      },
+      {
+        directory: path.join(__dirname, '..', 'dll'),
+        publicPath: '/dll'
+      }
+    ],
     historyApiFallback: true,
     setupMiddlewares: (middlewares, server) => {
       if (process.env.START_HOT) {

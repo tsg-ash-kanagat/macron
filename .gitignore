@@ -23,6 +23,9 @@ coverage
 build/Release
 .eslintcache
 
+# But keep build/*.plist (entitlements files needed for code signing)
+!build/*.plist
+
 # Dependency directory
 # https://www.npmjs.org/doc/misc/npm-faq.html#should-i-check-my-node_modules-folder-into-git
 node_modules

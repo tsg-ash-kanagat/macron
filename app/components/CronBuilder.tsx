@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useMemo } from 'react';
+import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { Input, Form, Radio, Button, Typography, Alert, Space, Tooltip } from 'antd';
 import { InfoCircleOutlined, CheckCircleOutlined, FolderOpenOutlined, WarningOutlined } from '@ant-design/icons';
 import { getCronDescription, formatNextRunTime, CRON_5_REGEX } from '../utils/cron';
@@ -127,37 +127,33 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
     return CRON_5_REGEX.test(cronExpression);
   }, [cronExpression]);
 
-  const commandValidation = useMemo(() => {
+  const [commandValidation, setCommandValidation] = useState({ valid: true, warning: null });
+
+  useEffect(() => {
     if (!command.trim()) {
-      return { valid: false, warning: null };
+      setCommandValidation({ valid: false, warning: null });
+      return;
     }
 
     const firstPart = command.trim().split(/\s+/)[0];
 
     if (firstPart.startsWith('/') || firstPart.startsWith('~/') || firstPart.startsWith('./')) {
       const expandedPath = firstPart.replace(/^~/, process.env.HOME || '');
-
-      try {
-        if (fs.existsSync(expandedPath)) {
-          const stats = fs.statSync(expandedPath);
-          if (stats.isFile()) {
-            return {
-              valid: true,
-              warning: (stats.mode & fs.constants.S_IXUSR) === 0
-                ? 'File exists but may not be executable'
-                : null
-            };
+      const timer = setTimeout(() => {
+        fs.stat(expandedPath, (err, stats) => {
+          if (err) {
+            setCommandValidation({ valid: false, warning: 'File does not exist' });
+          } else if (stats.isFile() && (stats.mode & fs.constants.S_IXUSR) === 0) {
+            setCommandValidation({ valid: true, warning: 'File exists but may not be executable' });
+          } else {
+            setCommandValidation({ valid: true, warning: null });
           }
-          return { valid: true, warning: null };
-        } else {
-          return { valid: false, warning: 'File does not exist' };
-        }
-      } catch (error) {
-        return { valid: false, warning: 'Cannot access file' };
-      }
+        });
+      }, 300);
+      return () => clearTimeout(timer);
     }
 
-    return { valid: true, warning: null };
+    setCommandValidation({ valid: true, warning: null });
   }, [command]);
 
   const handleFieldChange = (field, value, setter) => {

@@ -5,7 +5,7 @@ import { message, Modal, Spin } from 'antd';
 import Placeholder from './Placeholder';
 import Sidebar from './Sidebar';
 import Editor from './Editor';
-import { off, on } from '../utils/events';
+
 import { applyTheme, getTheme } from '../utils/theme';
 import { CRON_5_REGEX } from '../utils/cron';
 
@@ -19,6 +19,10 @@ function App() {
   const [selectedKeys, setSelectedKeys] = useState([]);
 
   const handleSave = onSuccess => {
+    if (!window.api) {
+      message.error('Crontab not connected');
+      return;
+    }
     api.save(err => {
       if (err) {
         const errorMsg = err.message || err.toString();
@@ -43,7 +47,7 @@ function App() {
         } else {
           message.error(errorMsg);
         }
-        connect();
+        connect().catch(() => {});
         return;
       }
 
@@ -129,6 +133,10 @@ function App() {
     if (job && !job.key) {
       return 'already an unsaved job.';
     }
+    if (!window.api) {
+      message.error('Crontab not connected');
+      return;
+    }
 
     const a = api.create('echo "hello world"', '* * * * *', 'hello world');
     const b = makeJob(a, null);
@@ -136,13 +144,22 @@ function App() {
   };
 
   const onCancel = () => {
+    if (!window.api) {
+      message.error('Crontab not connected');
+      return;
+    }
     api.reset();
     message.success('Changes cancelled.');
     setJob(null);
-    connect();
+    connect().catch(() => {});
   };
 
   const onSave = (j, payload) => {
+    if (!window.api) {
+      message.error('Crontab not connected');
+      return;
+    }
+
     const schedule = [
       payload.minute,
       payload.hour,
@@ -167,7 +184,7 @@ function App() {
     return handleSave(() => {
       const x = makeJob(newJob);
       message.success(`${x.name} saved.`);
-      connect(x);
+      connect(x).catch(() => {});
     });
   };
 
@@ -199,12 +216,16 @@ function App() {
         okType: 'danger',
         cancelText: 'Cancel',
         onOk() {
+          if (!window.api) {
+            message.error('Crontab not connected');
+            return;
+          }
           api.remove(j.job);
           handleSave(() => {
             const remaining = selectedKeys.filter(k => k !== j.key);
             setSelectedKeys(remaining);
             setJob(null);
-            connect();
+            connect().catch(() => {});
           });
         }
       });
@@ -213,11 +234,7 @@ function App() {
   );
 
   useEffect(() => {
-    connect();
-
-    on('touchbar-create', onCreate);
-
-    return () => off('touchbar-create', onCreate);
+    connect().catch(() => {});
   }, []);
 
   useEffect(() => {

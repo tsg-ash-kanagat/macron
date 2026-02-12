@@ -9,13 +9,12 @@
  * `./app/main.prod.js` using webpack. This gives us some performance wins.
  */
 import path from 'path';
-import { app, BrowserWindow, nativeTheme, TouchBar } from 'electron';
+import { app, BrowserWindow, nativeTheme } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as remote from '@electron/remote/main/index.js';
 remote.initialize();
 import log from 'electron-log';
 import store from './utils/store.js';
-import { fire } from './utils/events.js';
 
 store.set('theme', nativeTheme.shouldUseDarkColors ? 'dark' : 'light');
 
@@ -23,6 +22,55 @@ export default class AppUpdater {
   constructor() {
     log.transports.file.level = 'info';
     autoUpdater.logger = log;
+
+    // Configure auto-updater for security
+    autoUpdater.autoDownload = false; // Manual download control
+    autoUpdater.autoInstallOnAppQuit = true;
+
+    // Handle update events with enhanced security
+    autoUpdater.on('checking-for-update', () => {
+      log.info('Checking for updates...');
+    });
+
+    autoUpdater.on('update-available', (info) => {
+      log.info('Update available:', info);
+      // Only download updates from official releases
+      if (info.releaseType === 'release') {
+        autoUpdater.downloadUpdate();
+      } else {
+        log.warn('Skipping non-release update:', info.releaseType);
+      }
+    });
+
+    autoUpdater.on('update-not-available', (info) => {
+      log.info('Update not available:', info);
+    });
+
+    autoUpdater.on('error', (err) => {
+      log.error('Error in auto-updater:', err);
+    });
+
+    autoUpdater.on('download-progress', (progressObj) => {
+      const logMessage = `Download speed: ${progressObj.bytesPerSecond} - Downloaded ${progressObj.percent}% (${progressObj.transferred}/${progressObj.total})`;
+      log.info(logMessage);
+    });
+
+    autoUpdater.on('update-downloaded', (info) => {
+      log.info('Update downloaded - signature verified by electron-updater');
+      log.info('Update info:', {
+        version: info.version,
+        releaseDate: info.releaseDate,
+        releaseName: info.releaseName,
+        releaseNotes: info.releaseNotes
+      });
+
+      // electron-updater automatically verifies signatures on macOS
+      // The update will only proceed if the signature is valid
+      // Additional verification is handled by macOS code signing
+      log.info('Update will be installed on next app restart');
+    });
+
+    // Check for updates
     autoUpdater.checkForUpdatesAndNotify();
   }
 }
@@ -68,14 +116,24 @@ const createWindow = async () => {
     webPreferences: {
       nodeIntegration: true,
       contextIsolation: false,
-      enableRemoteModule: true,
-      sandbox: false
+      sandbox: false,
+      // Development mode: disable web security to allow webpack dev server
+      webSecurity: process.env.NODE_ENV !== 'development',
+      allowRunningInsecureContent: process.env.NODE_ENV === 'development'
     }
   });
 
   remote.enable(mainWindow.webContents);
 
-  mainWindow.loadURL(`file://${__dirname}/app.html`);
+  // In development, load from webpack dev server
+  // In production, load from file
+  if (process.env.NODE_ENV === 'development') {
+    const port = process.env.PORT || 1212;
+    mainWindow.loadURL(`http://localhost:${port}/app.html`);
+  } else {
+    const htmlPath = path.join(__dirname, 'app.html');
+    mainWindow.loadFile(htmlPath);
+  }
 
   // @TODO: Use 'ready-to-show' event
   //        https://github.com/electron/electron/blob/master/docs/api/browser-window.md#using-ready-to-show-event
@@ -96,18 +154,6 @@ const createWindow = async () => {
     mainWindow = null;
     app.quit();
   });
-
-  const newJobButton = new TouchBar.TouchBarButton({
-    label: 'Create Job',
-    backgroundColor: '#377ed5',
-    click: () => fire('touchbar-create')
-  });
-
-  const touchBar = new TouchBar({
-    items: [newJobButton]
-  });
-
-  mainWindow.setTouchBar(touchBar);
 
   // Auto-update only when packaged to avoid dev crashes
   if (app.isPackaged) {

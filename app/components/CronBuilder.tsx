@@ -190,11 +190,12 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
 
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [isValidCron, command, minute, hour, day, month, weekday, name]);
+  }, [isValidCron, command, minute, hour, day, month, weekday, name, job, onSave]);
 
   return (
     <Form layout="vertical" className="max-w-2xl" style={{ padding: '8px 0' }}>
       <Form.Item
+        style={{ marginBottom: '12px' }}
         label={
           <Space>
             <span>Job Name</span>
@@ -212,6 +213,7 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
       </Form.Item>
 
       <Form.Item
+        style={{ marginBottom: '12px' }}
         label="Command"
         required
         help="The shell command to execute"
@@ -222,7 +224,7 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
             value={command}
             onChange={e => setCommand(e.target.value)}
             placeholder="e.g., /usr/bin/backup.sh"
-            rows={3}
+            rows={2}
             status={!commandValidation.valid ? 'error' : commandValidation.warning ? 'warning' : undefined}
           />
           {commandValidation.warning && (
@@ -239,6 +241,7 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
               icon={<FolderOpenOutlined />}
               onClick={selectFile}
               block
+              size="small"
             >
               Browse for Script
             </Button>
@@ -246,29 +249,30 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
         </Space.Compact>
       </Form.Item>
 
-      <Form.Item label="Schedule" style={{ marginBottom: '24px' }}>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(120px, 1fr))', gap: '8px' }}>
+      <Form.Item label="Schedule" style={{ marginBottom: '12px' }}>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(95px, 1fr))', gap: '6px' }}>
           <Radio.Group
             value={frequency}
             onChange={e => help(e.target.value)}
-            size="large"
+            size="small"
             buttonStyle="solid"
             style={{ width: '100%', display: 'contents' }}
           >
-            <Radio.Button value="minutely" style={{ textAlign: 'center' }}>Every Minute</Radio.Button>
-            <Radio.Button value="15min" style={{ textAlign: 'center' }}>Every 15 Min</Radio.Button>
-            <Radio.Button value="hourly" style={{ textAlign: 'center' }}>Every Hour</Radio.Button>
-            <Radio.Button value="6hours" style={{ textAlign: 'center' }}>Every 6 Hours</Radio.Button>
-            <Radio.Button value="nightly" style={{ textAlign: 'center' }}>Daily</Radio.Button>
-            <Radio.Button value="weekdays" style={{ textAlign: 'center' }}>Weekdays</Radio.Button>
-            <Radio.Button value="weekly" style={{ textAlign: 'center' }}>Weekly</Radio.Button>
-            <Radio.Button value="monthly" style={{ textAlign: 'center' }}>Monthly</Radio.Button>
-            <Radio.Button value="custom" style={{ textAlign: 'center' }}>Custom</Radio.Button>
+            <Radio.Button value="minutely" style={{ textAlign: 'center', fontSize: '12px' }}>Every Min</Radio.Button>
+            <Radio.Button value="15min" style={{ textAlign: 'center', fontSize: '12px' }}>Every 15m</Radio.Button>
+            <Radio.Button value="hourly" style={{ textAlign: 'center', fontSize: '12px' }}>Hourly</Radio.Button>
+            <Radio.Button value="6hours" style={{ textAlign: 'center', fontSize: '12px' }}>Every 6h</Radio.Button>
+            <Radio.Button value="nightly" style={{ textAlign: 'center', fontSize: '12px' }}>Daily</Radio.Button>
+            <Radio.Button value="weekdays" style={{ textAlign: 'center', fontSize: '12px' }}>Weekdays</Radio.Button>
+            <Radio.Button value="weekly" style={{ textAlign: 'center', fontSize: '12px' }}>Weekly</Radio.Button>
+            <Radio.Button value="monthly" style={{ textAlign: 'center', fontSize: '12px' }}>Monthly</Radio.Button>
+            <Radio.Button value="custom" style={{ textAlign: 'center', fontSize: '12px' }}>Custom</Radio.Button>
           </Radio.Group>
         </div>
       </Form.Item>
 
       <Form.Item
+        style={{ marginBottom: '12px' }}
         label={
           <Space>
             <span>Cron Expression</span>
@@ -373,23 +377,23 @@ function CronBuilder({ job, onSave, onCancel, onDelete }) {
         </div>
       </Form.Item>
 
-      <Form.Item>
+      <Form.Item style={{ marginBottom: 0, marginTop: '-8px' }}>
         <Space size="middle" style={{ width: '100%', justifyContent: 'space-between' }}>
           <Space>
             <Tooltip title={!isValidCron ? 'Invalid cron expression' : !command.trim() ? 'Command is required' : 'Save job (Cmd+S)'}>
-              <Button onClick={save} type="primary" size="large" disabled={!isValidCron || !command.trim()}>
+              <Button onClick={save} type="primary" size="small" disabled={!isValidCron || !command.trim()}>
                 Save Job
               </Button>
             </Tooltip>
             <Tooltip title="Discard changes">
-              <Button onClick={cancel} size="large">
+              <Button onClick={cancel} size="small">
                 Cancel
               </Button>
             </Tooltip>
           </Space>
           {job.key && (
             <Tooltip title="Permanently delete this cron job">
-              <Button onClick={remove} danger size="large">
+              <Button onClick={remove} danger size="small">
                 Delete Job
               </Button>
             </Tooltip>

@@ -6,7 +6,7 @@ const { Title } = Typography;
 
 function Editor({ job, onCancel, onSave, onDelete }) {
   return (
-    <div className="flex flex-col p-8" style={{ background: 'var(--bg)', minHeight: '100vh' }}>
+    <div className="flex flex-col" style={{ background: 'var(--bg)', minHeight: '100vh', padding: '16px 24px' }}>
       <main className="flex-grow">
         <Card
           style={{
@@ -16,9 +16,9 @@ function Editor({ job, onCancel, onSave, onDelete }) {
             boxShadow: '0 2px 8px rgba(0,0,0,0.1)'
           }}
         >
-          <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <Space direction="vertical" size="small" style={{ width: '100%' }}>
             <div>
-              <Title level={3} style={{ margin: 0, color: 'var(--text)' }}>
+              <Title level={4} style={{ margin: 0, color: 'var(--text)' }}>
                 {job.name || 'New Cron Job'}
               </Title>
               {job.key && (

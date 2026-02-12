@@ -40,7 +40,7 @@ module.exports = merge(baseConfig, {
   mode: 'development',
   target: 'electron-renderer',
   entry: [
-    ...(process.env.PLAIN_HMR ? [] : ['react-hot-loader/patch']),
+    // HMR handled by webpack-dev-server
     `webpack-dev-server/client?http://localhost:${port}/`,
     'webpack/hot/only-dev-server',
     require.resolve('../app/index.tsx')
@@ -173,11 +173,7 @@ module.exports = merge(baseConfig, {
       }
     ]
   },
-  resolve: {
-    alias: {
-      'react-dom': '@hot-loader/react-dom'
-    }
-  },
+  resolve: {},
   plugins: [
     requiredByDLLConfig
       ? null
